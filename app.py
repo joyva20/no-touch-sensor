@@ -3,6 +3,7 @@
 import argparse
 import logging
 from signal import pause
+from threading import Lock
 
 
 logging.basicConfig(
@@ -13,19 +14,38 @@ logging.basicConfig(
 
 logger = logging.getLogger("no-touch-sensor")
 
+# Menyimpan status agar "SELAMAT JALAN" hanya muncul
+# setelah sebelumnya ada deteksi "SELAMAT DATANG".
+sensor_active = False
+state_lock = Lock()
+
 
 def sensor_on() -> None:
-    """Log ketika sensor mendeteksi tangan."""
-    logger.info(
-        "RESULT=SUCCESS | SENSOR=ON | INDICATOR=GREEN | HAND=DETECTED"
-    )
+    """Tampilkan sambutan ketika tangan/objek mulai terdeteksi."""
+    global sensor_active
+
+    with state_lock:
+        if sensor_active:
+            return
+
+        sensor_active = True
+        logger.info(
+            "SELAMAT DATANG | SENSOR=ON | INDICATOR=GREEN | HAND=DETECTED"
+        )
 
 
 def sensor_off() -> None:
-    """Log ketika sensor kembali tidak aktif."""
-    logger.info(
-        "RESULT=IDLE | SENSOR=OFF | INDICATOR=NORMAL | HAND=NOT_DETECTED"
-    )
+    """Tampilkan salam perpisahan ketika tangan/objek tidak terdeteksi lagi."""
+    global sensor_active
+
+    with state_lock:
+        if not sensor_active:
+            return
+
+        sensor_active = False
+        logger.info(
+            "SELAMAT JALAN | SENSOR=OFF | INDICATOR=NORMAL | HAND=NOT_DETECTED"
+        )
 
 
 def run_mock_mode() -> None:
@@ -34,7 +54,7 @@ def run_mock_mode() -> None:
     tanpa Raspberry Pi dan tanpa sensor.
     """
     logger.info("NO-TOUCH SENSOR MOCK MODE STARTED")
-    logger.info("Ketik 'on', 'off', atau 'exit'.")
+    logger.info("Ketik 'on' untuk SELAMAT DATANG, 'off' untuk SELAMAT JALAN.")
 
     while True:
         command = input("sensor> ").strip().lower()
